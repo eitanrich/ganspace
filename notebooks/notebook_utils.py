@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import prettify_name, pad_frames
+from tqdm import trange
+
 
 # Apply edit to given latents, return strip of images
 def create_strip(inst, mode, layer, latents, x_comp, z_comp, act_stdev, lat_stdev, sigma, layer_start, layer_end, num_frames=5):
@@ -106,7 +108,7 @@ def _create_strip_batch_sigma(inst, mode, layer, latents, x_comp, z_comp, act_st
     return batch_frames
 
 # Batch over latents if there are more latents than frames in strip
-def _create_strip_batch_lat(inst, mode, layer, latents, x_comp, z_comp, act_stdev, lat_stdev, act_mean, lat_mean, sigma, layer_start, layer_end, num_frames, center):    
+def _create_strip_batch_lat(inst, mode, layer, latents, x_comp, z_comp, act_stdev, lat_stdev, act_mean, lat_mean, sigma, layer_start, layer_end, num_frames, center):
     n_lat = len(latents)
     B = min(n_lat, 5)
 
@@ -170,6 +172,37 @@ def _create_strip_batch_lat(inst, mode, layer, latents, x_comp, z_comp, act_stde
                         batch_frames[img_idx].append(img)
 
     return batch_frames
+
+
+def sample_manifold(inst, latent, z_comps, lat_stdevs, sigma, layer_start, layer_end, num_frames, manifold_latents=None):
+    m_dim = z_comps.shape[0]
+    max_lat = inst.model.get_max_latents()
+    if layer_end < 0 or layer_end > max_lat:
+        layer_end = max_lat
+    layer_start = np.clip(layer_start, 0, layer_end)
+
+    z_batch_single = torch.cat([latent], 0)
+    samples = []
+
+    inst.close() # don't retain, remove edits
+
+    if manifold_latents is None:
+        manifold_latents = np.random.uniform(-sigma, sigma, size=[num_frames, m_dim]).astype(np.float32)
+
+    for i in trange(num_frames, desc='Samples', ascii=True):
+        s = torch.from_numpy(manifold_latents[i]).cuda()
+
+        with torch.no_grad():
+            z = [z_batch_single]*inst.model.get_max_latents() # one per layer
+
+            delta = (z_comps * (s*lat_stdevs).reshape(-1, 1, 1)).sum(dim=0)
+            for i in range(layer_start, layer_end):
+                z[i] = z[i] + delta
+
+            img_batch = inst.model.sample_np(z)
+            samples.append(img_batch)
+
+    return samples, manifold_latents
 
 
 def save_frames(title, model_name, rootdir, frames, strip_width=10):

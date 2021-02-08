@@ -67,6 +67,11 @@ class Config:
         parser.add_argument('--sigma', type=float, default=2.0, help='Number of stdevs to walk in visualize.py')
         parser.add_argument('--inputs', type=str, default=None, help='Path to directory with named components')
         parser.add_argument('--seed', type=int, default=None, help='Seed used in decomposition')
+        parser.add_argument('--samples', type=int, default=10, help='Number of samples to generate')
+        parser.add_argument('--c1', type=int, default=0, help='First manifold component')
+        parser.add_argument('--c2', type=int, default=1, help='Second manifold component')
+        parser.add_argument('--end_c', type=int, default=-1, help='end component (i.e. use 0:end_c instead of c1, c2)')
+        parser.add_argument('--grid', dest='gen_grid', action='store_true', help="Generate an 2D grid instead of manifold")
         args = parser.parse_args(args)
 
         return self.from_dict(args.__dict__)
