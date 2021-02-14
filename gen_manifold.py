@@ -191,21 +191,25 @@ if __name__ == '__main__':
 
 
     if args.gen_grid:
+        n = 6
         assert len(comp_nums) == 2
         print('Generating a manifold grid image...')
-        manifold_latents = []
-        for s0 in np.arange(-args.sigma, args.sigma+1e-3, args.sigma/2):
-            for s1 in np.arange(-args.sigma, args.sigma+1e-3, args.sigma/2):
+        mosaic = []
+        for s0 in np.arange(-args.sigma, args.sigma+1e-3, args.sigma/n):
+            manifold_latents = []
+            for s1 in np.arange(-args.sigma, args.sigma+1e-3, args.sigma/n):
                 manifold_latents.append([s0, s1])
-        manifold_latents = np.array(manifold_latents).astype(np.float32)
-        frames, latents = sample_manifold(inst,
-                                          tensors.Z_global_mean,
-                                          tensors.Z_comp[comp_nums], tensors.Z_stdev[comp_nums], args.sigma, 0, -1,
-                                          manifold_latents.shape[0], manifold_latents=manifold_latents)
-
-        frame = np.vstack([np.hstack([frames[i*5+j] for j in range(5)]) for i in range(5)])
-        im = Image.fromarray((255*frame).astype(np.uint8))
-        im = im.resize((128*5, 128*5), Image.BILINEAR)
+            manifold_latents = np.array(manifold_latents).astype(np.float32)
+            frames, latents = sample_manifold(inst,
+                                              tensors.Z_global_mean,
+                                              tensors.Z_comp[comp_nums], tensors.Z_stdev[comp_nums], args.sigma, 0, -1,
+                                              manifold_latents.shape[0], manifold_latents=manifold_latents)
+            mosaic.append(np.hstack(frames))
+        mosaic = np.vstack(mosaic)
+        # frame = np.vstack([np.hstack([frames[i*5+j] for j in range(5)]) for i in range(5)])
+        im = Image.fromarray((255*mosaic).astype(np.uint8))
+        im = im.resize((128*(2*n+1), 128*(2*n+1)), Image.BILINEAR)
+        print('Saving to', f'{outdir_manifold}_grid.jpg')
         im.save(f'{outdir_manifold}_grid.jpg')
 
     else:
